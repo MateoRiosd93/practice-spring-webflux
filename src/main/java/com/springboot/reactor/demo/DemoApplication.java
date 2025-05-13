@@ -3,6 +3,8 @@ package com.springboot.reactor.demo;
 import com.springboot.reactor.demo.models.Comentarios;
 import com.springboot.reactor.demo.models.Usuario;
 import com.springboot.reactor.demo.models.UsuarioComentarios;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -41,9 +43,48 @@ public class DemoApplication implements CommandLineRunner {
 //		ejemploInterval();
 //		ejemploDelayElements();
 //		ejemploIntervaloInfinito();
-		ejemploIntervalDesdeCreate();
+//		ejemploIntervalDesdeCreate();
+		ejemploContraPresion();
 	}
 
+	public void ejemploContraPresion(){
+		Flux.range(1, 10)
+				.log()
+				.limitRate(5)
+				.subscribe();
+//				NOTA: Esta es la manera de hacerlo utilizando sobrecarga de metodos implementando el Subscriber()
+//				.subscribe(new Subscriber<Integer>() {
+//					Subscription subscription;
+//					private Integer limit = 5;
+//					private Integer consumido = 0;
+//
+//					@Override
+//					public void onSubscribe(Subscription subscription) {
+//						this.subscription = subscription;
+//						this.subscription.request(limit);
+//					}
+//
+//					@Override
+//					public void onNext(Integer integer) {
+//						log.info(integer.toString());
+//						consumido++;
+//						if (consumido.equals(limit)) {
+//							consumido = 0;
+//							this.subscription.request(limit);
+//						}
+//					}
+//
+//					@Override
+//					public void onError(Throwable throwable) {
+//
+//					}
+//
+//					@Override
+//					public void onComplete() {
+//
+//					}
+//				});
+	}
 
 	public void ejemploIntervalDesdeCreate(){
 		Flux.create(emitter -> {
