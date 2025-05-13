@@ -11,8 +11,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.sql.Time;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.CountDownLatch;
 
 @SpringBootApplication
 public class DemoApplication implements CommandLineRunner {
@@ -32,13 +37,90 @@ public class DemoApplication implements CommandLineRunner {
 //		ejemploUsuarioComentariosFlapMap();
 //		ejemploUsuarioComentariosZipWith();
 //		ejemploUsuarioComentariosZipWithForma2();
-		ejemploUsuarioComentariosZipWithRangos();
+//		ejemploUsuarioComentariosZipWithRangos();
+//		ejemploInterval();
+//		ejemploDelayElements();
+//		ejemploIntervaloInfinito();
+		ejemploIntervalDesdeCreate();
+	}
+
+
+	public void ejemploIntervalDesdeCreate(){
+		Flux.create(emitter -> {
+					Timer time = new Timer();
+					time.schedule(new TimerTask() {
+						private Integer contador = 0;
+
+						@Override
+						public void run() {
+							emitter.next(++contador);
+							if (contador == 10) {
+								time.cancel();
+								emitter.complete();
+							}
+
+							if (contador == 5) {
+								time.cancel();
+								emitter.error(new InterruptedException("Error, se ha detenido el Flux en 5!!!"));
+							}
+						}
+					}, 1000, 1000);
+				})
+//				.doOnComplete(() -> log.info("Hemos terminado!!!"))
+//				Tambien podemos usar el doOnComplete en el subscribe ya que este tiene el 3 parametros:
+//				subscribe((data) -> succces, (error) -> {}, () -> complete), el tercer callback se ejecuta siempre que termine
+				.subscribe(next -> log.info(next.toString()), error -> log.error(error.getMessage()), () -> log.info("Hemos terminado!!!"));
+	}
+
+	public void ejemploIntervaloInfinito() throws InterruptedException {
+		CountDownLatch latch = new CountDownLatch(1);
+
+		Flux.interval(Duration.ofSeconds(1))
+				.doOnTerminate(latch::countDown)
+				.flatMap(intervalo -> {
+					if (intervalo >= 5) {
+						return Flux.error(new InterruptedException("Solo hasta 5!!"));
+					}
+					return Flux.just(intervalo);
+				})
+				.map(intervalo -> "Hola " + intervalo)
+				.retry(2)
+				.subscribe(log::info, error -> log.error(error.getMessage()));
+
+		latch.await();
+	}
+
+
+//	Nota: la idea de la programacion reactiva es no tener bloqueos los ejemplos con el blockLast es netamente practico.
+	public void ejemploDelayElements() throws InterruptedException {
+		Flux<Integer> rango = Flux.range(1, 12)
+				.delayElements(Duration.ofSeconds(1))
+				.doOnNext(integer -> log.info(integer.toString()));
+
+//		blockLast bloquea el hilo hasta que se muestre el ultimo elemento del flujo
+		rango.blockLast();
+
+//		Otra manera de hacerlo es pausando el hilo con .sleep
+//		rango.subscribe();
+//		Thread.sleep(130000);
+	}
+
+	public void ejemploInterval(){
+		Flux<Integer> rango = Flux.range(1,12);
+		Flux<Long> retraso = Flux.interval(Duration.ofSeconds(1));
+
+		rango.zipWith(retraso, (ra, re) -> ra)
+				.doOnNext(i -> log.info(i.toString()))
+//				.subscribe();
+				.blockLast();
 	}
 
 	public void ejemploUsuarioComentariosZipWithRangos() {
+		Flux<Integer> rango = Flux.range(0,4);
+
 		Flux.just(1,2,3,5)
 				.map(number -> number * 2)
-				.zipWith(Flux.range(0,4), (numeroFlujo1, numeroFlujo2) -> String.format("primer flux: %d, segundo flux: %d", numeroFlujo1, numeroFlujo2))
+				.zipWith(rango, (numeroFlujo1, numeroFlujo2) -> String.format("primer flux: %d, segundo flux: %d", numeroFlujo1, numeroFlujo2))
 				.subscribe(log::info);
 	}
 
